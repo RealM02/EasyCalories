@@ -37,7 +37,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             echo "Error: " . $stmt->error;
         }
     } else {
-        echo "Email already exists. Please choose a different email.";
+        echo "Email ya existe escoje otro.";
     }
 }
 
