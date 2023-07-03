@@ -16,29 +16,42 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $email = $_POST['email'];
     $password = $_POST['password'];
 
+    // Check if password is at least 8 characters long
+    if (strlen($password) < 8) {
+        echo '<script>alert("Password should be at least 8 characters long."); window.location.href = "index.php";</script>';
+        exit;
+    }
+
     // Prepare the query to fetch user data
-    $stmt = $conn->prepare("SELECT * FROM clientes WHERE correo = ? AND pass = ?");
-    $stmt->bind_param("ss", $email, $password);
+    $stmt = $conn->prepare("SELECT * FROM clientes WHERE correo = ?");
+    $stmt->bind_param("s", $email);
     $stmt->execute();
     $result = $stmt->get_result();
 
     if ($result->num_rows === 1) {
-        // Successful login
+        // User exists, check password
         $row = $result->fetch_assoc();
-        $clientId = $row['id_cliente'];
-        $name = $row['nombre'];
-        $lastNameM = $row['apellido_m'];
-        $lastNameP = $row['apellido_p'];
-        $creationDate = $row['fecha_creacion'];
-        $active = $row['activo'];
+        if ($password === $row['pass']) {
+            // Successful login
+            $clientId = $row['id_cliente'];
+            $name = $row['nombre'];
+            $lastNameM = $row['apellido_m'];
+            $lastNameP = $row['apellido_p'];
+            $creationDate = $row['fecha_creacion'];
+            $active = $row['activo'];
 
-        // Store user data in session or perform desired actions
+            // Store user data in session or perform desired actions
 
-        // Redirect to home page
-        header("Location: home.php");
-        exit;
+            // Redirect to home page
+            header("Location: home.php");
+            exit;
+        } else {
+            // Incorrect password
+            echo '<script>alert("Email and password do not match."); window.location.href = "index.php";</script>';
+            exit;
+        }
     } else {
-        // Invalid login
+        // User does not exist, redirect to registration page
         header("Location: register.php");
         exit;
     }

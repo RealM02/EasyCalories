@@ -18,6 +18,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $apellido_p = $_POST['apellido_p'];
     $email = $_POST['email'];
     $password = $_POST['password'];
+    $confirm_password = $_POST['confirm_password'];
 
     // Check if the email already exists in the database
     $stmt = $conn->prepare("SELECT * FROM clientes WHERE correo = ?");
@@ -37,7 +38,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             echo "Error: " . $stmt->error;
         }
     } else {
-        echo "Email ya existe escoje otro.";
+        echo '<script>alert("Email ya existe, elige otro."); window.location.href = "register.php";</script>';
     }
 }
 
