@@ -3,6 +3,7 @@
 <head>
   <title>Exact Calories - Registro</title>
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css">
+  <link rel="icon" type="image/png" href="user_g.png">
   <style>
     .card-img-container {
       display: flex;

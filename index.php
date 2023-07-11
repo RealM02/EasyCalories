@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Easy Calories</title>
+  <title>Exact Calories</title>
   <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css">
+  <link rel="icon" type="image/png" href="user_g.png">
 </head>
 <body>
   <div class="container">

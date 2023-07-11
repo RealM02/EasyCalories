@@ -1,4 +1,7 @@
 <?php
+// Start the session
+session_start();
+
 // Database connection
 $dbHost = 'auth-db555.hstgr.io';
 $dbUsername = 'u206492809_admin';
@@ -40,7 +43,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $creationDate = $row['fecha_creacion'];
             $active = $row['activo'];
 
-            // Store user data in session or perform desired actions
+            // Store user data in session
+            $_SESSION['client_id'] = $clientId;
+            $_SESSION['name'] = $name;
+            $_SESSION['last_name_m'] = $lastNameM;
+            $_SESSION['last_name_p'] = $lastNameP;
+            $_SESSION['creation_date'] = $creationDate;
+            $_SESSION['active'] = $active;
 
             // Redirect to home page
             header("Location: home.php");
