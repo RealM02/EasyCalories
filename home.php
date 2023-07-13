@@ -17,34 +17,6 @@ if ($conn->connect_error) {
 // User ID to search for
 $idCliente = $_SESSION['client_id']; // Replace with the actual user ID you want to search for
 
-// Query to retrieve the highest number in the "id_historial" column
-$query1 = "SELECT MAX(id_historial) AS max_id FROM historial WHERE id_cliente = $idCliente";
-$result1 = $conn->query($query1);
-
-// Check if the query was successful
-if ($result1 && $result1->num_rows > 0) {
-    $row1 = $result1->fetch_assoc();
-    $maxId1 = $row1['max_id'];
-    $nextId1 = $maxId1 + 1;
-    $result1->free();
-} else {
-    echo "Error: " . $conn->error;
-}
-
-// Query to retrieve the highest number in the "id_lista" column
-$query2 = "SELECT MAX(id_lista) AS max_id FROM historial WHERE id_cliente = $idCliente";
-$result2 = $conn->query($query2);
-
-// Check if the query was successful
-if ($result2 && $result2->num_rows > 0) {
-    $row2 = $result2->fetch_assoc();
-    $maxId2 = $row2['max_id'];
-    $nextId2 = $maxId2 + 1;
-    $result2->free();
-} else {
-    echo "No records found in the table.";
-}
-
 // Query to fetch categories
 $categoryQuery = "SELECT id_categoria, descripcion FROM categoria_alimentos";
 $categoryResult = $conn->query($categoryQuery);
@@ -138,21 +110,11 @@ $alimentosQuery = "SELECT id_alimentos, nombre FROM alimentos WHERE id_categoria
                         <table class="table">
                             <thead>
                                 <tr>
-                                    <th>ID Alimento</th>
-                                    <th>Nombre</th>
+                                    <th></th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php
-                                $query = "SELECT d.id_alimento, a.nombre FROM detalle_historial d JOIN alimentos a ON d.id_alimento = a.id_alimentos WHERE d.id_cliente = ? GROUP BY d.id_alimento ORDER BY COUNT(*) DESC LIMIT 10";
-                                $stmt = $conn->prepare($query);
-                                $stmt->bind_param("s", $_SESSION['client_id']);
-                                $stmt->execute();
-                                $result = $stmt->get_result();
-                                while ($row = $result->fetch_assoc()) {
-                                    echo "<tr><td>" . $row['id_alimento'] . "</td><td>" . $row['nombre'] . "</td></tr>";
-                                }
-                                ?>
+                                
                             </tbody>
                         </table>
                         <!-- End of displaying top 10 most repeated id_alimento records -->
@@ -184,32 +146,11 @@ $alimentosQuery = "SELECT id_alimentos, nombre FROM alimentos WHERE id_categoria
                         <table class="table table-striped">
                             <thead>
                         <tr>
-                            <th>ID Historial</th>
-                            <th>ID Lista</th>
-                            <th>Última Fecha Ingreso</th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php
-                        // Prepare the query to fetch the last 5 records in the historial table for the user
-                        $stmt = $conn->prepare("SELECT id_historial, id_lista, ultima_fecha_ingreso FROM historial WHERE id_cliente = ? ORDER BY ultima_fecha_ingreso DESC LIMIT 5");
-                        $stmt->bind_param("i", $_SESSION['client_id']);
-                        $stmt->execute();
-                        $result = $stmt->get_result();
-
-                        // Loop through the result set and display the records in the table
-                        while ($row = $result->fetch_assoc()) {
-                            echo '<tr>';
-                            echo '<td>' . $row['id_historial'] . '</td>';
-                            echo '<td>' . $row['id_lista'] . '</td>';
-                            echo '<td>' . $row['ultima_fecha_ingreso'] . '</td>';
-                            echo '</tr>';
-                        }
-
-                        // Close the prepared statement and free up the result set
-                        $stmt->close();
-                        $result->free_result();
-                        ?>
+                        
                     </tbody>
                         </table>
                     </div>
@@ -221,47 +162,11 @@ $alimentosQuery = "SELECT id_alimentos, nombre FROM alimentos WHERE id_categoria
     <table class="table table-striped">
         <thead>
             <tr>
-                <th>ID Alimento</th>
-                <th>Nombre</th>
+                <th></th>
             </tr>
         </thead>
         <tbody>
-            <?php
-            // Prepare the query to fetch the last 5 products from detalle_historial for the user
-            $stmt = $conn->prepare("SELECT id_alimento FROM detalle_historial WHERE id_cliente = ? ORDER BY id_lista DESC LIMIT 5");
-            $stmt->bind_param("i", $_SESSION['client_id']);
-            $stmt->execute();
-            $result = $stmt->get_result();
-
-            // Get the last 5 products from the result set
-            $products = [];
-            while ($row = $result->fetch_assoc()) {
-                $products[] = $row;
-            }
-            $products = array_reverse($products); // Reverse the array to get the latest products first
-
-            // Loop through the products and display the records in the table
-            foreach ($products as $product) {
-                // Retrieve additional information from the alimentos table based on id_alimento
-                $alimentoQuery = $conn->prepare("SELECT nombre FROM alimentos WHERE id_alimentos = ?");
-                $alimentoQuery->bind_param("i", $product['id_alimento']);
-                $alimentoQuery->execute();
-                $alimentoResult = $alimentoQuery->get_result();
-                $alimentoData = $alimentoResult->fetch_assoc();
-                
-                echo '<tr>';
-                echo '<td>' . $product['id_alimento'] . '</td>';
-                echo '<td>' . $alimentoData['nombre'] . '</td>';
-                echo '</tr>';
-
-                $alimentoResult->free_result();
-                $alimentoQuery->close();
-            }
-
-            // Close the prepared statement and free up the result set
-            $stmt->close();
-            $result->free_result();
-            ?>
+            
         </tbody>
     </table>
 </div>

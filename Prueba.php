@@ -14,36 +14,32 @@ if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
 
-// User ID to search for
-$idCliente = $_SESSION['client_id']; // Replace with the actual user ID you want to search for
+// User ID and historial to search for
+$idCliente = $_SESSION['client_id'];  
 
-// Query to retrieve the highest number in the "id_historial" column
-$query1 = "SELECT MAX(id_historial) AS max_id FROM historial WHERE id_cliente = $idCliente";
-$result1 = $conn->query($query1);
+// SQL query to fetch the top 10 most repeated id_alimento records for id_client = 13
+$sql = "SELECT dh.id_alimento, COUNT(dh.id_alimento) AS repeticiones, a.nombre
+        FROM historial_completo dh
+        JOIN alimentos a ON dh.id_alimento = a.id_alimentos
+        WHERE dh.id_cliente = $idCliente
+        GROUP BY dh.id_alimento, a.nombre
+        ORDER BY repeticiones DESC
+        LIMIT 10";
 
-// Check if the query was successful
-if ($result1 && $result1->num_rows > 0) {
-    $row1 = $result1->fetch_assoc();
-    $maxId1 = $row1['max_id'];
-    $nextId1 = $maxId1 + 1;
-    $result1->free();
-} else {
-    echo "Error: " . $conn->error;
-}
+$tenp = $conn->query($sql);
 
-// Query to retrieve the highest number in the "id_lista" column
-$query2 = "SELECT MAX(id_lista) AS max_id FROM historial WHERE id_cliente = $idCliente";
-$result2 = $conn->query($query2);
+// Query to retrieve the last 5 records from historial
+$query = "SELECT id_historial, ultima_fecha_ingreso FROM historial_completo WHERE id_cliente = $idCliente ORDER BY ultima_fecha_ingreso DESC LIMIT 5";
+$hfive = $conn->query($query);
 
-// Check if the query was successful
-if ($result2 && $result2->num_rows > 0) {
-    $row2 = $result2->fetch_assoc();
-    $maxId2 = $row2['max_id'];
-    $nextId2 = $maxId2 + 1;
-    $result2->free();
-} else {
-    echo "No records found in the table.";
-}
+// Query to retrieve the last 5 records for alimentos
+$query = "SELECT hc.id_alimento, hc.ultima_fecha_ingreso, a.nombre
+FROM historial_completo hc
+INNER JOIN alimentos a ON hc.id_alimento = a.id_alimentos
+WHERE hc.id_cliente = 13
+ORDER BY hc.ultima_fecha_ingreso DESC
+LIMIT 5";
+$afive = $conn->query($query);
 
 // Query to fetch categories
 $categoryQuery = "SELECT id_categoria, descripcion FROM categoria_alimentos";
@@ -67,6 +63,7 @@ $alimentosQuery = "SELECT id_alimentos, nombre FROM alimentos WHERE id_categoria
 </head>
 <body>
 
+<!-- Navbar -->
 <nav class="navbar navbar-expand-lg navbar-light bg-light">
   <div class="container">
     <a class="navbar-brand">
@@ -133,29 +130,38 @@ $alimentosQuery = "SELECT id_alimentos, nombre FROM alimentos WHERE id_categoria
                     </div>
                 </div>
 
-                <!-- Display top 10 most repeated id_alimento records from detalle_historial -->
-                    <h5>Top 10 alimentos más consumidos:</h5>
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>ID Alimento</th>
-                                    <th>Nombre</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php
-                                $query = "SELECT d.id_alimento, a.nombre FROM detalle_historial d JOIN alimentos a ON d.id_alimento = a.id_alimentos WHERE d.id_cliente = ? GROUP BY d.id_alimento ORDER BY COUNT(*) DESC LIMIT 10";
-                                $stmt = $conn->prepare($query);
-                                $stmt->bind_param("s", $_SESSION['client_id']);
-                                $stmt->execute();
-                                $result = $stmt->get_result();
-                                while ($row = $result->fetch_assoc()) {
-                                    echo "<tr><td>" . $row['id_alimento'] . "</td><td>" . $row['nombre'] . "</td></tr>";
-                                }
-                                ?>
-                            </tbody>
-                        </table>
-                        <!-- End of displaying top 10 most repeated id_alimento records -->
+<!-- Display top 10 most repeated id_alimento records from detalle_historial -->
+<h5>Top 10 alimentos más consumidos:</h5>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Nombre</th>
+            <th class="text-center">Número de consumos</th>
+        </tr>
+    </thead>
+    <tbody>
+        <?php
+        // Display the fetched records
+        if ($tenp->num_rows > 0) {
+            while ($row = $tenp->fetch_assoc()) {
+                echo "<tr>";
+                echo "<td>" . $row["nombre"] . "</td>";
+                echo "<td class='text-center'>" . $row["repeticiones"] . "</td>";
+                echo "</tr>";
+            }
+        } else {
+            echo "<tr>
+                    <td colspan='2'>
+                        <div class='alert alert-warning' role='alert'>
+                            No se encontro información
+                        </div>
+                    </td>
+                </tr>";
+        }
+        ?>
+    </tbody>
+</table>
+<!-- End of displaying top 10 most repeated id_alimento records -->
 
             </div>
             <div class="modal-footer">
@@ -165,7 +171,6 @@ $alimentosQuery = "SELECT id_alimentos, nombre FROM alimentos WHERE id_categoria
         </div>
     </div>
 </div>
-
 
 <!-- Historial Modal -->
 <div id="historialModal" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="historialModalLabel" aria-hidden="true">
@@ -179,88 +184,70 @@ $alimentosQuery = "SELECT id_alimentos, nombre FROM alimentos WHERE id_categoria
             </div>
             <div class="modal-body">
                 <div class="row">
-                    <div class="col-md-6">
+                <div class="col-md-6">
                         <h5>Últimos 5 registros en el historial:</h5>
+                        <hr>
+                        <p>Selecciona un historial para revisar las listas de ese día.</p>
                         <table class="table table-striped">
                             <thead>
-                        <tr>
-                            <th>ID Historial</th>
-                            <th>ID Lista</th>
-                            <th>Última Fecha Ingreso</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php
-                        // Prepare the query to fetch the last 5 records in the historial table for the user
-                        $stmt = $conn->prepare("SELECT id_historial, id_lista, ultima_fecha_ingreso FROM historial WHERE id_cliente = ? ORDER BY ultima_fecha_ingreso DESC LIMIT 5");
-                        $stmt->bind_param("i", $_SESSION['client_id']);
-                        $stmt->execute();
-                        $result = $stmt->get_result();
+                                <tr>
+                                    <th>ID Historial</th>
+                                    <th>Última Fecha de Ingreso</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php
+                                // Iterate over the retrieved rows and display the data
+                                while ($row = $hfive->fetch_assoc()) {
+                                    echo "<tr class='clickable-row historial-row' style='cursor: pointer;' data-toggle='modal' data-target='#modal_lista'>";
+                                    echo "<td> Historial <span class='historial-id'>" . $row['id_historial'] . "</span></td>";
+                                    echo "<td>" . $row['ultima_fecha_ingreso'] . "</td>";
+                                    echo "</tr>";
+                                }
 
-                        // Loop through the result set and display the records in the table
-                        while ($row = $result->fetch_assoc()) {
-                            echo '<tr>';
-                            echo '<td>' . $row['id_historial'] . '</td>';
-                            echo '<td>' . $row['id_lista'] . '</td>';
-                            echo '<td>' . $row['ultima_fecha_ingreso'] . '</td>';
-                            echo '</tr>';
-                        }
-
-                        // Close the prepared statement and free up the result set
-                        $stmt->close();
-                        $result->free_result();
-                        ?>
-                    </tbody>
+                                // Check if any records were found
+                                if ($hfive->num_rows == 0) {
+                                    echo "<tr>
+                                            <td colspan='2'>
+                                                <div class='alert alert-warning' role='alert'>
+                                                    No se encontró información
+                                                </div>
+                                            </td>
+                                        </tr>";
+                                }
+                                ?>
+                            </tbody>
                         </table>
                     </div>
 
 
-
 <div class="col-md-6">
-    <h5>Últimos 5 productos:</h5>
+    <h5>Últimos 5 productos consumidos:</h5>
     <table class="table table-striped">
         <thead>
             <tr>
-                <th>ID Alimento</th>
                 <th>Nombre</th>
             </tr>
         </thead>
         <tbody>
-            <?php
-            // Prepare the query to fetch the last 5 products from detalle_historial for the user
-            $stmt = $conn->prepare("SELECT dh.id_alimento, al.nombre FROM detalle_historial AS dh INNER JOIN alimentos as al on dh.id_alimento = al.id_alimentos WHERE id_cliente = ? ORDER BY id_lista DESC LIMIT 5");
-            $stmt->bind_param("i", $_SESSION['client_id']);
-            $stmt->execute();
-            $result = $stmt->get_result();
-
-            // Get the last 5 products from the result set
-            $products = [];
-            while ($row = $result->fetch_assoc()) {
-                $products[] = $row;
-            }
-            $products = array_reverse($products); // Reverse the array to get the latest products first
-
-            // Loop through the products and display the records in the table
-            foreach ($products as $product) {
-                // Retrieve additional information from the alimentos table based on id_alimento
-                $alimentoQuery = $conn->prepare("SELECT nombre FROM alimentos WHERE id_alimentos = ?");
-                $alimentoQuery->bind_param("i", $product['id_alimento']);
-                $alimentoQuery->execute();
-                $alimentoResult = $alimentoQuery->get_result();
-                $alimentoData = $alimentoResult->fetch_assoc();
-                
-                echo '<tr>';
-                echo '<td>' . $product['id_alimento'] . '</td>';
-                echo '<td>' . $alimentoData['nombre'] . '</td>';
-                echo '</tr>';
-
-                $alimentoResult->free_result();
-                $alimentoQuery->close();
+        <?php
+            // Iterate over the retrieved rows and display the data
+            while ($row = $afive->fetch_assoc()) {
+                echo "<tr>";
+                echo "<td>" . $row['nombre'] . "</td>";
+                echo "</tr>";
             }
 
-            // Close the prepared statement and free up the result set
-            $stmt->close();
-            $result->free_result();
+            // Check if any records were found
+if ($hfive->num_rows == 0) {
+    echo "<tr>
+            <td colspan='2'>
+                <div class='alert alert-warning' role='alert'>
+                    No se encontro información
+                </div>
+            </td>
+        </tr>";
+}
             ?>
         </tbody>
     </table>
@@ -277,6 +264,35 @@ $alimentosQuery = "SELECT id_alimentos, nombre FROM alimentos WHERE id_categoria
     </div>
 </div>
 
+<!-- Modal Lista -->
+<div class="modal fade" id="modal_lista" tabindex="-1" role="dialog" aria-labelledby="modal_lista_i" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modal_lista_i">Historial</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>ID Lista</th>
+                <th>ID Alimento</th>
+              </tr>
+            </thead>
+            <tbody id="modal-lista-body"></tbody>
+          </table>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<!-- Carrousel -->
 <div class="container my-2">
   <div id="carouselExampleSlidesOnly" class="carousel slide" data-ride="carousel">
     <div class="carousel-inner">
@@ -334,6 +350,7 @@ $alimentosQuery = "SELECT id_alimentos, nombre FROM alimentos WHERE id_categoria
   </div>
 </div>
 
+<!-- Resultado con Dropdown -->
 <div class="container mt-4">
         <h3 class="text-center">Selecciona el alimento</h3>
 
@@ -365,6 +382,7 @@ $alimentosQuery = "SELECT id_alimentos, nombre FROM alimentos WHERE id_categoria
         </div>
     </div>
 
+<!-- Resultados barra de búsqueda -->
     <div class="container">
 
         <h2>Resultados</h2>
@@ -516,24 +534,6 @@ $conn->close();
                     <input type="hidden" name="id_cliente" value="<?php echo $id_cliente; ?>">
                     <input type="hidden" name="ultima_fecha_ingreso" value="<?php echo date('Y-m-d'); ?>">
                     
-                    <!--Display the number of the historial and lista-->
-                    <div class="container mb-3">
-                        <div class="row">
-                            <div class="col d-flex align-items-center">
-                                <label for="id_historial" class="text-end">Número de historial:</label>
-                            </div>
-                            <div class="col">
-                                <input type="text" id="id_historial" class="form-control border-0 bg-transparent" value="<?php echo $nextId1;?>"readonly>
-                            </div>
-                            <div class="col d-flex align-items-center">
-                                <label for="id_lista" class="text-end">Número de lista:</label>
-                            </div>
-                            <div class="col">
-                                <input type="text" id="id_lista" class="form-control border-0 bg-transparent" value="<?php echo $nextId2;?>" readonly>
-                            </div>
-                        </div>
-                    </div>
-                    
                     <div class="form-group">
                         <label for="horario_comida">Tipo de comida:</label>
                         <select class="form-control" id="horario_comida" name="horario_comida">
@@ -605,8 +605,7 @@ $conn->close();
     </div>
 </div>
 
-
-
+<!-- Boton con calorias -->
 <div class="text-center">
     <?php
         $totalContenidoK = 0;
@@ -634,6 +633,58 @@ $conn->close();
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.5.4/dist/umd/popper.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js"></script>
+
+    <script>
+    $(document).on('hidden.bs.modal', '#modal_lista', function () {
+        $('.modal-backdrop').addClass('show');
+        $('#historialModal').removeClass('hide');
+    });
+    </script>
+
+    <script>
+    $(document).ready(function() {
+        $('.historial-row').click(function() {
+            var historialId = $(this).find('.historial-id').text();
+            var modalTitle = "Historial " + historialId;
+            $('#modal_lista_i').text(modalTitle);
+        });
+    });
+    </script>
+    
+    <script>
+  $(document).ready(function() {
+    $('.historial-row').click(function() {
+      var historialId = $(this).find('.historial-id').text();
+      var modalTitle = "Historial " + historialId;
+      $('#modal_lista_i').text(modalTitle);
+
+      // Fetch data for the clicked id_historial
+      var xhr = new XMLHttpRequest();
+      xhr.open("GET", "fetch_modal_lista.php?id_historial=" + historialId, true);
+      xhr.onload = function() {
+        if (xhr.status === 200) {
+          var modalListaData = JSON.parse(xhr.responseText);
+          var modalListaBody = document.getElementById("modal-lista-body");
+          modalListaBody.innerHTML = ""; // Clear previous data
+
+          // Iterate over the fetched data and create table rows
+          modalListaData.forEach(function(row) {
+            var tr = document.createElement("tr");
+            var tdIdLista = document.createElement("td");
+            var tdIdAlimento = document.createElement("td");
+            tdIdLista.textContent = row.id_lista;
+            tdIdAlimento.textContent = row.id_alimento;
+            tr.appendChild(tdIdLista);
+            tr.appendChild(tdIdAlimento);
+            modalListaBody.appendChild(tr);
+          });
+        }
+      };
+      xhr.send();
+    });
+  });
+</script>
+
 
     <script>
     var alimentosDropdown = document.getElementById("alimentos");
@@ -698,4 +749,4 @@ $conn->close();
 </script>
 
 </body>
-</html>s
+</html>
